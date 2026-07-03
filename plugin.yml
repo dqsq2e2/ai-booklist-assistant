@@ -1,6 +1,6 @@
 id: ai-booklist-assistant
 name: AI Booklist Assistant
-version: 1.0.1
+version: 1.0.2
 min_core_version: 1.4.8
 min_flutter_version: 1.1.1
 author: Ting Reader Team
@@ -19,7 +19,7 @@ capabilities:
   title:
     zh: 书单助手
     en: Booklist Assistant
-  icon: message-circle
+  icon: sparkles
   priority: 20
   render:
     mode: web_container
@@ -44,20 +44,6 @@ capabilities:
   - reader
   - book
   - chapter
-- id: assistant.book_detail
-  kind: ui_extension
-  invoke: openAssistant
-  slot: book.detail_action
-  title:
-    zh: 问书单助手
-    en: Ask Booklist Assistant
-  icon: book-open
-  priority: 35
-  render:
-    mode: web_container
-    entry: ui/assistant.html
-  contexts:
-  - book
 - id: assistant.user_settings
   kind: ui_extension
   invoke: saveAssistantSettings
