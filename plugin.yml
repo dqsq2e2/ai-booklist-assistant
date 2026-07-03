@@ -1,0 +1,178 @@
+id: ai-booklist-assistant
+name: AI Booklist Assistant
+version: 1.0.0
+min_core_version: 1.4.8
+min_flutter_version: 1.1.1
+author: Ting Reader Team
+description:
+  zh: 在插件面板中对话、整理馆藏、生成和保存个人书单的 AI 助手。
+  en: AI assistant for chatting with the library, creating personal booklists, and saving recommendations.
+runtime: javascript
+license: MIT
+repo: dqsq2e2/ai-booklist-assistant
+entry_point: plugin.js
+capabilities:
+- id: assistant.panel
+  kind: ui_extension
+  invoke: openAssistant
+  slot: global.floating_action
+  title:
+    zh: 书单助手
+    en: Booklist Assistant
+  icon: message-circle
+  priority: 20
+  render:
+    mode: web_container
+    entry: ui/assistant.html
+  contexts:
+  - global
+  - book
+  - reader
+- id: assistant.reader_panel
+  kind: ui_extension
+  invoke: openAssistant
+  slot: reader.side_panel
+  title:
+    zh: 边听边问
+    en: Ask While Listening
+  icon: messages-square
+  priority: 40
+  render:
+    mode: web_container
+    entry: ui/assistant.html
+  contexts:
+  - reader
+  - book
+  - chapter
+- id: assistant.user_settings
+  kind: ui_extension
+  invoke: saveAssistantSettings
+  slot: settings.section
+  title:
+    zh: 书单助手偏好
+    en: Booklist Assistant Preferences
+  priority: 90
+  render:
+    mode: schema
+    submit_label: 保存
+    schema:
+      fields:
+      - name: default_list_name
+        label: 默认书单名
+        type: text
+        default: 想听书单
+      - name: auto_save_suggestions
+        label: 自动保存 AI 书单建议
+        type: boolean
+        default: false
+      - name: recommendation_limit
+        label: 每次推荐数量
+        type: number
+        default: 8
+  contexts:
+  - settings
+- id: assistant.chat_route
+  kind: http_route
+  invoke: handleChatRoute
+  route:
+    method: POST
+    path: /assistant/chat
+    auth: user
+- id: assistant.tools
+  kind: tool_provider
+  invoke: invokeTool
+  tools:
+  - name: assistant.state
+    description: Load assistant conversations, booklists, and recent library context.
+  - name: assistant.chat
+    description: Chat with the assistant and optionally generate a booklist draft.
+  - name: assistant.load_conversation
+    description: Load a saved assistant conversation by id.
+  - name: books.recommend
+    description: Recommend accessible books from the current user's library.
+  - name: booklist.create
+    description: Create or update a saved personal booklist.
+  - name: booklist.add_book
+    description: Add a book to an existing or default booklist.
+  - name: booklist.list
+    description: List saved personal booklists.
+  - name: booklist.export
+    description: Export saved booklists as Markdown or JSON.
+config_schema:
+  type: object
+  properties:
+    api_base_url:
+      type: string
+      title:
+        zh: AI API 地址
+        en: AI API endpoint
+      description:
+        zh: OpenAI 兼容 chat/completions 地址，也可填写服务根地址。
+        en: OpenAI-compatible chat/completions endpoint, or a service root URL.
+      default: https://api.openai.com/v1/chat/completions
+    api_key:
+      type: string
+      format: secret
+      x-encrypted: true
+      title:
+        zh: API 密钥
+        en: API key
+      description:
+        zh: 加密保存。留空时插件使用本地规则生成书单建议。
+        en: Stored encrypted. When empty, the plugin uses local rule-based recommendations.
+    model:
+      type: string
+      title:
+        zh: 模型
+        en: Model
+      default: gpt-4.1-mini
+    temperature:
+      type: number
+      title:
+        zh: 温度
+        en: Temperature
+      default: 0.35
+      minimum: 0
+      maximum: 1
+    max_history_messages:
+      type: integer
+      title:
+        zh: 上下文消息数
+        en: History messages
+      default: 16
+      minimum: 4
+      maximum: 40
+    default_list_name:
+      type: string
+      title:
+        zh: 全局默认书单名
+        en: Global default list name
+      default: 想听书单
+    auto_save_suggestions:
+      type: boolean
+      title:
+        zh: 自动保存 AI 建议
+        en: Auto-save AI suggestions
+      default: false
+    system_prompt:
+      type: string
+      title:
+        zh: 系统提示词
+        en: System prompt
+      description:
+        zh: 留空使用内置书单助手提示词。请要求模型只返回 JSON。
+        en: Leave empty to use the built-in prompt. Ask the model to return JSON only.
+permissions:
+- type: books_read
+- type: chapters_read
+- type: progress_read
+- type: cache_read
+- type: cache_write
+- type: playlists_read
+- type: playlists_write
+- type: favorites_read
+- type: favorites_write
+- type: user_settings_read
+- type: user_settings_write
+- type: network_access
+  value: "*"

@@ -1,0 +1,6 @@
+dist/
+*.tr
+*.private.json
+trpack
+trpack.exe
+trpack-private-key.json

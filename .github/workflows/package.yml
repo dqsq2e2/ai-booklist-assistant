@@ -1,0 +1,94 @@
+name: Package Plugin
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download trpack
+        run: |
+          curl -L -o trpack https://www.tingreader.cn/trpack/trpack-1.0.2-linux-amd64
+          chmod +x trpack
+          ./trpack --help
+
+      - name: Read plugin metadata
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(python3 - <<'PY'
+          from pathlib import Path
+          for line in Path("plugin.yml").read_text(encoding="utf-8").splitlines():
+              if line.startswith("version:"):
+                  print(line.split(":", 1)[1].strip().strip("\"'"))
+                  break
+          PY
+          )"
+          PLUGIN_ID="$(python3 - <<'PY'
+          from pathlib import Path
+          for line in Path("plugin.yml").read_text(encoding="utf-8").splitlines():
+              if line.startswith("id:"):
+                  print(line.split(":", 1)[1].strip().strip("\"'"))
+                  break
+          PY
+          )"
+          if [ -z "$VERSION" ] || [ -z "$PLUGIN_ID" ]; then
+            echo "Failed to read plugin id/version from plugin.yml" >&2
+            exit 1
+          fi
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            if [ "$TAG_VERSION" != "$VERSION" ]; then
+              echo "Tag ${GITHUB_REF_NAME} does not match plugin.yml version ${VERSION}" >&2
+              exit 1
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "plugin_id=$PLUGIN_ID" >> "$GITHUB_OUTPUT"
+          echo "package=$PLUGIN_ID-$VERSION.tr" >> "$GITHUB_OUTPUT"
+
+      - name: Validate plugin
+        run: ./trpack validate .
+
+      - name: Build package
+        env:
+          TRPACK_PRIVATE_KEY_JSON: ${{ secrets.TRPACK_PRIVATE_KEY_JSON }}
+        shell: bash
+        run: |
+          mkdir -p dist
+          if [ -n "${TRPACK_PRIVATE_KEY_JSON}" ]; then
+            printf "%s" "${TRPACK_PRIVATE_KEY_JSON}" > trpack-private-key.json
+            ./trpack build . --output "dist/${{ steps.meta.outputs.package }}" --sign-key trpack-private-key.json
+            rm -f trpack-private-key.json
+          else
+            ./trpack build . --output "dist/${{ steps.meta.outputs.package }}"
+          fi
+
+      - name: Verify package
+        run: ./trpack verify "dist/${{ steps.meta.outputs.package }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.package }}
+          path: dist/${{ steps.meta.outputs.package }}
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ steps.meta.outputs.package }}
