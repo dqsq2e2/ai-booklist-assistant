@@ -31,6 +31,30 @@
         --danger: #ffb4aa;
       }
     }
+    :root[data-ting-theme="light"] {
+      color-scheme: light;
+      --bg: #f7f8f5;
+      --panel: #ffffff;
+      --text: #1c201d;
+      --muted: #667064;
+      --line: #dfe4dc;
+      --accent: #2f6f5e;
+      --accent-2: #b56b28;
+      --soft: #edf4ef;
+      --danger: #b42318;
+    }
+    :root[data-ting-theme="dark"] {
+      color-scheme: dark;
+      --bg: #101412;
+      --panel: #171c19;
+      --text: #edf2ed;
+      --muted: #a5b0a8;
+      --line: #29312d;
+      --accent: #80c7ad;
+      --accent-2: #e3a15e;
+      --soft: #1e2a24;
+      --danger: #ffb4aa;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -244,4 +268,3 @@
   <script src="./assistant.js"></script>
 </body>
 </html>
-

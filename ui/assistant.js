@@ -78,12 +78,22 @@
     });
   }
 
+  function applyHostTheme(theme) {
+    var source = theme || {};
+    var value = String(source.colorScheme || source.brightness || "").toLowerCase();
+    var scheme = value.indexOf("dark") >= 0 ? "dark" : value.indexOf("light") >= 0 ? "light" : "";
+    if (!scheme) return;
+    document.documentElement.dataset.tingTheme = scheme;
+    document.documentElement.style.colorScheme = scheme;
+  }
+
   window.addEventListener("message", function (event) {
     var data = event.data;
     if (!data || typeof data !== "object") return;
 
     if (data.type === "ting-plugin:init") {
       pluginContext = data;
+      applyHostTheme(data.theme);
       // 只有拿到宿主上下文后才刷新状态；欢迎语根据真实 ai_configured 渲染。
       loadState();
       return;

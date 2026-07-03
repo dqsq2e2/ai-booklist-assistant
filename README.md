@@ -4,7 +4,7 @@ Ting Reader JavaScript 插件，用于在客户端插件面板里和书库对话
 
 ## 安装
 
-从 GitHub Releases 下载 `ai-booklist-assistant-1.0.2.tr`，在 Ting Reader 插件管理页上传安装。
+从 GitHub Releases 下载 `ai-booklist-assistant-1.0.3.tr`，在 Ting Reader 插件管理页上传安装。
 
 ## 能力
 
