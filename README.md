@@ -4,11 +4,11 @@ Ting Reader JavaScript 插件，用于在客户端插件面板里和书库对话
 
 ## 安装
 
-从 GitHub Releases 下载 `ai-booklist-assistant-1.0.0.tr`，在 Ting Reader 插件管理页上传安装。
+从 GitHub Releases 下载 `ai-booklist-assistant-1.0.1.tr`，在 Ting Reader 插件管理页上传安装。
 
 ## 能力
 
-- `ui_extension`: 全局悬浮入口、阅读器侧边栏入口、插件偏好表单。
+- `ui_extension`: 全局悬浮入口、书籍详情入口、阅读器侧边栏入口、插件偏好表单。
 - `tool_provider`: `assistant.chat`、`assistant.load_conversation`、`books.recommend`、`booklist.create`、`booklist.add_book`、`booklist.list`、`booklist.export`。
 - `http_route`: `POST /api/v1/plugin-routes/assistant/chat`，走登录态保护。
 - `HostGateway`: 通过 `books.*`、`playlists.*`、`cache.*` 等受控宿主能力读取授权资源、保存对话并创建 Ting Reader 播放列表。
