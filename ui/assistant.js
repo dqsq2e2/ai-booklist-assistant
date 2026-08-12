@@ -16,9 +16,64 @@
   var activeConversationId = null;
   var activeDraft = null;
   var stateLoading = false;
+  var language = "zh-CN";
+
+  var text = {
+    zh: {
+      timeout: "插件桥接请求超时，请刷新面板或检查后端插件日志。",
+      callFailed: "插件调用失败",
+      loading: "加载中",
+      waitingForHost: "等待宿主上下文…",
+      syncing: "同步中",
+      loadingConversation: "加载对话",
+      configured: "AI 已配置 · ",
+      localMode: "本地规则模式",
+      processing: "整理中...",
+      ready: "AI 已就绪。你可以让我按馆藏整理书单，也可以直接说出想读的作者、题材或播讲人。",
+      noApiKey: "当前没有配置 AI Key，我会先用本地规则按馆藏生成书单。",
+      actionFailed: "执行失败",
+      suggestedBooklist: "建议书单",
+      books: " 本书",
+      saveBooklist: "保存书单",
+      autoSaved: "已自动保存到 “",
+      booklist: "书单",
+      autoSavedEnd: "”",
+      noHistory: "还没有对话历史",
+      newConversation: "新建对话",
+      newConversationTitle: "新的对话",
+      messages: " 条消息 · ",
+      error: "错误："
+    },
+    en: {
+      timeout: "Plugin bridge request timed out. Refresh the panel or check the plugin logs.",
+      callFailed: "Plugin call failed",
+      loading: "Loading",
+      waitingForHost: "Waiting for host context...",
+      syncing: "Syncing",
+      loadingConversation: "Loading conversation",
+      configured: "AI configured · ",
+      localMode: "Local rules mode",
+      processing: "Working...",
+      ready: "AI is ready. Ask me to organize your library into a booklist, or name an author, genre, or narrator you want to hear.",
+      noApiKey: "No AI key is configured, so I will create booklists from your library with local rules.",
+      actionFailed: "Action failed",
+      suggestedBooklist: "Suggested booklist",
+      books: " books",
+      saveBooklist: "Save booklist",
+      autoSaved: "Automatically saved to \"",
+      booklist: "booklist",
+      autoSavedEnd: "\"",
+      noHistory: "No conversation history yet",
+      newConversation: "New conversation",
+      newConversationTitle: "New conversation",
+      messages: " messages · ",
+      error: "Error: "
+    }
+  };
 
   var els = {
     status: document.getElementById("status"),
+    title: document.getElementById("title"),
     refresh: document.getElementById("refreshBtn"),
     tabChat: document.getElementById("tabChat"),
     tabHistory: document.getElementById("tabHistory"),
@@ -28,13 +83,69 @@
     history: document.getElementById("history"),
     composer: document.getElementById("composer"),
     prompt: document.getElementById("prompt"),
-    send: document.getElementById("sendBtn")
+    send: document.getElementById("sendBtn"),
+    quickRecent: document.getElementById("quickRecent"),
+    quickSleep: document.getElementById("quickSleep"),
+    quickLearning: document.getElementById("quickLearning")
   };
 
   function setStatus(text, failed) {
     if (!els.status) return;
     els.status.textContent = text;
     els.status.classList.toggle("error", Boolean(failed));
+  }
+
+  function isEnglish() {
+    return String(language || "").toLowerCase().indexOf("en") === 0;
+  }
+
+  function t(key) {
+    var table = isEnglish() ? text.en : text.zh;
+    return table[key] || text.zh[key] || key;
+  }
+
+  function applyLanguage(value) {
+    language = String(value || "zh-CN");
+    document.documentElement.lang = isEnglish() ? "en" : "zh-CN";
+    if (els.refresh) els.refresh.title = isEnglish() ? "Refresh" : "刷新";
+    if (els.title) els.title.textContent = isEnglish() ? "Booklist Assistant" : "书单助手";
+    if (els.tabChat) els.tabChat.textContent = isEnglish() ? "Chat" : "对话";
+    if (els.tabHistory) els.tabHistory.textContent = isEnglish() ? "History" : "历史";
+    if (els.quickRecent) {
+      els.quickRecent.textContent = isEnglish() ? "Recent listening" : "最近播放";
+      els.quickRecent.setAttribute(
+        "data-quick",
+        isEnglish()
+          ? "Organize an 8-book continue-list from my recent listening"
+          : "按最近播放整理 8 本续听书单"
+      );
+    }
+    if (els.quickSleep) {
+      els.quickSleep.textContent = isEnglish() ? "Before bed" : "睡前听";
+      els.quickSleep.setAttribute(
+        "data-quick",
+        isEnglish()
+          ? "Create a relaxing booklist for listening before bed"
+          : "帮我建一个适合睡前听的放松书单"
+      );
+    }
+    if (els.quickLearning) {
+      els.quickLearning.textContent = isEnglish() ? "Learning" : "学习主题";
+      els.quickLearning.setAttribute(
+        "data-quick",
+        isEnglish()
+          ? "Recommend a booklist for learning and knowledge"
+          : "按知识学习主题推荐一个书单"
+      );
+    }
+    if (els.prompt) {
+      els.prompt.placeholder = isEnglish()
+        ? "For example: make a six-book mystery starter list from my library"
+        : "例如：帮我从馆藏里建一个 6 本的推理入门书单";
+    }
+    if (els.send) els.send.textContent = isEnglish() ? "Send" : "发送";
+    document.title = isEnglish() ? "Booklist Assistant" : "书单助手";
+    renderHistory();
   }
 
   function escapeHtml(value) {
@@ -51,7 +162,7 @@
       var timer = window.setTimeout(function () {
         if (!pending.has(id)) return;
         pending.delete(id);
-        reject(new Error("插件桥接请求超时，请刷新面板或检查后端插件日志。"));
+        reject(new Error(t("timeout")));
       }, BRIDGE_TIMEOUT_MS);
       pending.set(id, {
         resolve: function (value) { window.clearTimeout(timer); resolve(value); },
@@ -78,6 +189,17 @@
     });
   }
 
+  function loadLanguage() {
+    return bridgeRequest("host.invoke", {
+      method: "user_settings.get",
+      params: { key: "language" }
+    }).then(function (result) {
+      applyLanguage(result && result.value);
+    }).catch(function () {
+      applyLanguage("zh-CN");
+    });
+  }
+
   function applyHostTheme(theme) {
     var source = theme || {};
     var value = String(source.colorScheme || source.brightness || "").toLowerCase();
@@ -94,8 +216,8 @@
     if (data.type === "ting-plugin:init") {
       pluginContext = data;
       applyHostTheme(data.theme);
-      // 只有拿到宿主上下文后才刷新状态；欢迎语根据真实 ai_configured 渲染。
-      loadState();
+      // Read the account language whenever this UI is opened, then render.
+      loadLanguage().then(loadState);
       return;
     }
 
@@ -105,7 +227,7 @@
       if (data.ok) {
         callbacks.resolve(data.result);
       } else {
-        callbacks.reject(new Error(data.error || "插件调用失败"));
+        callbacks.reject(new Error(data.error || t("callFailed")));
       }
     }
   });
@@ -121,8 +243,8 @@
     if (!els.messages || welcomeShown) return;
     welcomeShown = true;
     var text = state.ai_configured
-      ? "AI 已就绪。你可以让我按馆藏整理书单，也可以直接说出想读的作者、题材或播讲人。"
-      : "当前没有配置 AI Key，我会先用本地规则按馆藏生成书单。";
+      ? t("ready")
+      : t("noApiKey");
     appendMessage("assistant", text);
   }
 
@@ -132,7 +254,7 @@
     for (var i = 0; i < actions.length; i += 1) {
       var action = actions[i] || {};
       if (action.ok === false) {
-        lines.push("× " + (action.name || "action") + "：" + (action.error || "执行失败"));
+        lines.push("× " + (action.name || "action") + ": " + (action.error || t("actionFailed")));
       } else {
         var title = "";
         if (action.booklist && action.booklist.name) title = action.booklist.name;
@@ -161,12 +283,12 @@
         var count = (meta.suggested_booklist.books || []).length;
         draft.className = "draft";
         draft.innerHTML =
-          "<strong>" + escapeHtml(meta.suggested_booklist.name || "建议书单") + "</strong><br>" +
-          count + " 本书";
+          "<strong>" + escapeHtml(meta.suggested_booklist.name || t("suggestedBooklist")) + "</strong><br>" +
+          count + t("books");
         if (!meta.saved_booklist_id) {
           var button = document.createElement("button");
           button.type = "button";
-          button.textContent = "保存书单";
+          button.textContent = t("saveBooklist");
           button.style.marginTop = "8px";
           button.addEventListener("click", function () {
             activeDraft = meta.suggested_booklist;
@@ -176,7 +298,7 @@
         } else {
           var savedTag = document.createElement("div");
           savedTag.style.marginTop = "6px";
-          savedTag.textContent = "已自动保存到 “" + (meta.saved_booklist_name || "书单") + "”";
+          savedTag.textContent = t("autoSaved") + (meta.saved_booklist_name || t("booklist")) + t("autoSavedEnd");
           draft.appendChild(savedTag);
         }
         node.appendChild(draft);
@@ -216,14 +338,14 @@
     if (!els.history) return;
     var conversations = state.conversations || [];
     if (conversations.length === 0) {
-      els.history.innerHTML = '<div class="empty">还没有对话历史</div>';
+      els.history.innerHTML = '<div class="empty">' + escapeHtml(t("noHistory")) + '</div>';
       return;
     }
     els.history.innerHTML = "";
     var newBtn = document.createElement("button");
     newBtn.type = "button";
     newBtn.className = "primary";
-    newBtn.textContent = "新建对话";
+    newBtn.textContent = t("newConversation");
     newBtn.style.marginBottom = "10px";
     newBtn.addEventListener("click", function () {
       activeConversationId = null;
@@ -239,12 +361,12 @@
       var card = document.createElement("article");
       card.className = "card";
       card.style.cursor = "pointer";
-      var title = conv.title || "新的对话";
+      var title = conv.title || t("newConversationTitle");
       var count = conv.message_count || 0;
       var time = conv.updated_at || conv.created_at || "";
       card.innerHTML =
         "<h2>" + escapeHtml(title) + "</h2>" +
-        "<p>" + count + " 条消息 · " + escapeHtml(time.slice(0, 16).replace("T", " ")) + "</p>";
+        "<p>" + count + t("messages") + escapeHtml(time.slice(0, 16).replace("T", " ")) + "</p>";
       card.addEventListener("click", (function (cid) {
         return function () {
           activeConversationId = cid;
@@ -258,13 +380,13 @@
 
   function loadConversation(conversationId) {
     if (!conversationId) return;
-    setStatus("加载对话");
+    setStatus(t("loadingConversation"));
     invokeTool("assistant.load_conversation", { conversation_id: conversationId })
       .then(function (result) {
         if (result.conversation) {
           renderConversation(result.conversation);
         }
-        setStatus(state.ai_configured ? "AI 已配置 · " + (state.model || "") : "本地规则模式");
+        setStatus(state.ai_configured ? t("configured") + (state.model || "") : t("localMode"));
       })
       .catch(function (error) {
         setStatus(String(error && error.message ? error.message : error), true);
@@ -274,11 +396,11 @@
   function loadState() {
     if (stateLoading) return;
     stateLoading = true;
-    setStatus("同步中");
+    setStatus(t("syncing"));
     invokeTool("assistant.state", {})
       .then(function (result) {
         state = result || state;
-        setStatus(state.ai_configured ? "AI 已配置 · " + (state.model || "") : "本地规则模式");
+        setStatus(state.ai_configured ? t("configured") + (state.model || "") : t("localMode"));
         renderHistory();
         renderWelcome();
       })
@@ -298,7 +420,7 @@
     els.prompt.value = "";
     els.send.disabled = true;
     appendMessage("user", message);
-    var pendingNode = appendMessage("assistant", "整理中...");
+    var pendingNode = appendMessage("assistant", t("processing"));
 
     invokeTool("assistant.chat", {
       conversation_id: activeConversationId,
@@ -314,10 +436,10 @@
         var msg = String(error && error.message ? error.message : error);
         if (pendingNode) {
           while (pendingNode.firstChild) pendingNode.removeChild(pendingNode.firstChild);
-          pendingNode.textContent = "Error: " + msg;
+          pendingNode.textContent = t("error") + msg;
           pendingNode.classList.add("error");
         } else {
-          replaceLastAssistant("Error: " + msg, true);
+          replaceLastAssistant(t("error") + msg, true);
         }
       })
       .then(function () {
@@ -346,12 +468,12 @@
   }
 
   bindEvents();
-  setStatus("加载中");
+  setStatus(t("loading"));
 
   // 兜底：如果 800ms 内还没收到 init，就先尝试加载状态；仍失败时提示可以直接输入。
   window.setTimeout(function () {
     if (!pluginContext) {
-      setStatus("等待宿主上下文…");
+      setStatus(t("waitingForHost"));
       loadState();
     }
   }, 800);

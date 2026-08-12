@@ -233,7 +233,7 @@
   <div class="app">
     <header>
       <div>
-        <h1>书单助手</h1>
+        <h1 id="title">书单助手</h1>
         <div class="status" id="status">加载中</div>
       </div>
       <button class="ghost" id="refreshBtn" title="刷新">刷新</button>
@@ -247,9 +247,9 @@
     <main>
       <section id="chatView" class="view active">
         <div class="quick">
-          <button type="button" data-quick="按最近播放整理 8 本续听书单">最近播放</button>
-          <button type="button" data-quick="帮我建一个适合睡前听的放松书单">睡前听</button>
-          <button type="button" data-quick="按知识学习主题推荐一个书单">学习主题</button>
+          <button id="quickRecent" type="button" data-quick="按最近播放整理 8 本续听书单">最近播放</button>
+          <button id="quickSleep" type="button" data-quick="帮我建一个适合睡前听的放松书单">睡前听</button>
+          <button id="quickLearning" type="button" data-quick="按知识学习主题推荐一个书单">学习主题</button>
         </div>
         <div id="messages" class="messages"></div>
       </section>
