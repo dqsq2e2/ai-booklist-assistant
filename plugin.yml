@@ -1,6 +1,6 @@
 id: ai-booklist-assistant
 name: AI Booklist Assistant
-version: 1.0.5
+version: 1.0.6
 min_core_version: 1.4.9
 min_flutter_version: 1.1.1
 author: Ting Reader Team
@@ -15,7 +15,9 @@ capabilities:
 - id: assistant.panel
   kind: ui_extension
   invoke: openAssistant
-  slot: global.floating_action
+  slots:
+  - app.sidebar_page
+  - global.floating_action
   title:
     zh: 书单助手
     en: Booklist Assistant
@@ -24,26 +26,15 @@ capabilities:
   render:
     mode: web_container
     entry: ui/assistant.html
+    bridge:
+      capabilities:
+      - assistant.tools
+      host_methods:
+      - user_settings.get
   contexts:
   - global
   - book
   - reader
-- id: assistant.reader_panel
-  kind: ui_extension
-  invoke: openAssistant
-  slot: reader.side_panel
-  title:
-    zh: 边听边问
-    en: Ask While Listening
-  icon: messages-square
-  priority: 40
-  render:
-    mode: web_container
-    entry: ui/assistant.html
-  contexts:
-  - reader
-  - book
-  - chapter
 - id: assistant.user_settings
   kind: ui_extension
   invoke: saveAssistantSettings

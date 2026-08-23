@@ -11,6 +11,7 @@
 
   var pending = new Map();
   var pluginContext = null;
+  var bridgeToken = null;
   var welcomeShown = false;
   var state = { conversations: [], ai_configured: false };
   var activeConversationId = null;
@@ -157,6 +158,9 @@
   }
 
   function bridgeRequest(method, params) {
+    if (!bridgeToken) {
+      return Promise.reject(new Error(t("waitingForHost")));
+    }
     var id = String(Date.now()) + "-" + Math.random().toString(16).slice(2);
     return new Promise(function (resolve, reject) {
       var timer = window.setTimeout(function () {
@@ -169,7 +173,13 @@
         reject: function (err) { window.clearTimeout(timer); reject(err); }
       });
       try {
-        window.parent.postMessage({ type: "ting-plugin:request", id: id, method: method, params: params }, "*");
+        window.__TING_PLUGIN_BRIDGE__.postMessage({
+          type: "ting-plugin:request",
+          id: id,
+          method: method,
+          params: params,
+          bridge_token: bridgeToken
+        });
       } catch (err) {
         window.clearTimeout(timer);
         pending.delete(id);
@@ -210,10 +220,12 @@
   }
 
   window.addEventListener("message", function (event) {
+    if (event.source !== window) return;
     var data = event.data;
     if (!data || typeof data !== "object") return;
 
     if (data.type === "ting-plugin:init") {
+      bridgeToken = data.bridgeToken || null;
       pluginContext = data;
       applyHostTheme(data.theme);
       // Read the account language whenever this UI is opened, then render.
@@ -221,7 +233,7 @@
       return;
     }
 
-    if (data.type === "ting-plugin:response" && pending.has(data.id)) {
+    if (data.type === "ting-plugin:response" && data.bridge_token === bridgeToken && pending.has(data.id)) {
       var callbacks = pending.get(data.id);
       pending.delete(data.id);
       if (data.ok) {
@@ -470,11 +482,10 @@
   bindEvents();
   setStatus(t("loading"));
 
-  // 兜底：如果 800ms 内还没收到 init，就先尝试加载状态；仍失败时提示可以直接输入。
+  // Host init carries the per-document bridge token. Do not invoke before it arrives.
   window.setTimeout(function () {
     if (!pluginContext) {
       setStatus(t("waitingForHost"));
-      loadState();
     }
   }, 800);
 })();
