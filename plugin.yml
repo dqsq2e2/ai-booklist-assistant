@@ -1,6 +1,6 @@
 id: ai-booklist-assistant
 name: AI Booklist Assistant
-version: 1.0.6
+version: 1.0.7
 min_core_version: 1.4.9
 min_flutter_version: 1.1.1
 author: Ting Reader Team
@@ -35,34 +35,6 @@ capabilities:
   - global
   - book
   - reader
-- id: assistant.user_settings
-  kind: ui_extension
-  invoke: saveAssistantSettings
-  slot: settings.section
-  title:
-    zh: 书单助手偏好
-    en: Booklist Assistant Preferences
-  icon: settings
-  priority: 90
-  render:
-    mode: schema
-    submit_label: 保存
-    schema:
-      fields:
-      - name: default_list_name
-        label: 默认书单名
-        type: text
-        default: 想听书单
-      - name: auto_save_suggestions
-        label: 自动保存 AI 书单建议
-        type: boolean
-        default: false
-      - name: recommendation_limit
-        label: 每次推荐数量
-        type: number
-        default: 8
-  contexts:
-  - settings
 - id: assistant.chat_route
   kind: http_route
   invoke: handleChatRoute
