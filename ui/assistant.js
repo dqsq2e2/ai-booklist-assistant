@@ -42,6 +42,14 @@
       noHistory: "还没有对话历史",
       newConversation: "新建对话",
       newConversationTitle: "新的对话",
+      deleteHistory: "删除对话历史",
+      deleteHistoryTitle: "删除对话",
+      deleteHistoryConfirm: "确定删除“{title}”的对话历史吗？此操作无法撤销。",
+      cancel: "取消",
+      confirmDelete: "删除",
+      deletingHistory: "正在删除对话历史",
+      historyDeleted: "对话历史已删除",
+      deleteHistoryFailed: "删除失败：",
       messages: " 条消息 · ",
       error: "错误："
     },
@@ -67,6 +75,14 @@
       noHistory: "No conversation history yet",
       newConversation: "New conversation",
       newConversationTitle: "New conversation",
+      deleteHistory: "Delete conversation history",
+      deleteHistoryTitle: "Delete conversation",
+      deleteHistoryConfirm: "Delete the conversation history \"{title}\"? This cannot be undone.",
+      cancel: "Cancel",
+      confirmDelete: "Delete",
+      deletingHistory: "Deleting conversation history",
+      historyDeleted: "Conversation history deleted",
+      deleteHistoryFailed: "Delete failed: ",
       messages: " messages · ",
       error: "Error: "
     }
@@ -87,8 +103,16 @@
     send: document.getElementById("sendBtn"),
     quickRecent: document.getElementById("quickRecent"),
     quickSleep: document.getElementById("quickSleep"),
-    quickLearning: document.getElementById("quickLearning")
+    quickLearning: document.getElementById("quickLearning"),
+    confirmDialog: document.getElementById("confirmDialog"),
+    confirmTitle: document.getElementById("confirmTitle"),
+    confirmMessage: document.getElementById("confirmMessage"),
+    confirmCancel: document.getElementById("confirmCancel"),
+    confirmDelete: document.getElementById("confirmDelete")
   };
+
+  var confirmResolver = null;
+  var confirmTrigger = null;
 
   function setStatus(text, failed) {
     if (!els.status) return;
@@ -145,6 +169,9 @@
         : "例如：帮我从馆藏里建一个 6 本的推理入门书单";
     }
     if (els.send) els.send.textContent = isEnglish() ? "Send" : "发送";
+    if (els.confirmTitle) els.confirmTitle.textContent = t("deleteHistoryTitle");
+    if (els.confirmCancel) els.confirmCancel.textContent = t("cancel");
+    if (els.confirmDelete) els.confirmDelete.textContent = t("confirmDelete");
     document.title = isEnglish() ? "Booklist Assistant" : "书单助手";
     renderHistory();
   }
@@ -371,23 +398,132 @@
     for (var i = 0; i < conversations.length; i += 1) {
       var conv = conversations[i];
       var card = document.createElement("article");
-      card.className = "card";
-      card.style.cursor = "pointer";
+      card.className = "card history-card";
       var title = conv.title || t("newConversationTitle");
       var count = conv.message_count || 0;
       var time = conv.updated_at || conv.created_at || "";
-      card.innerHTML =
+
+      var openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "history-open";
+      openBtn.innerHTML =
         "<h2>" + escapeHtml(title) + "</h2>" +
         "<p>" + count + t("messages") + escapeHtml(time.slice(0, 16).replace("T", " ")) + "</p>";
-      card.addEventListener("click", (function (cid) {
+      openBtn.addEventListener("click", (function (cid) {
         return function () {
           activeConversationId = cid;
           loadConversation(cid);
           switchTab("chat");
         };
       })(conv.id));
+
+      var deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "delete-history";
+      deleteBtn.title = t("deleteHistory");
+      deleteBtn.setAttribute("aria-label", t("deleteHistory") + "：" + title);
+      deleteBtn.innerHTML = '<span class="trash-icon" aria-hidden="true"></span>';
+      deleteBtn.addEventListener("click", (function (cid, conversationTitle, button) {
+        return function () {
+          deleteConversation(cid, conversationTitle, button);
+        };
+      })(conv.id, title, deleteBtn));
+
+      card.appendChild(openBtn);
+      card.appendChild(deleteBtn);
       els.history.appendChild(card);
     }
+  }
+
+  function deleteConversation(conversationId, title, button) {
+    if (!conversationId) return;
+    requestDeleteConfirmation(title, button).then(function (confirmed) {
+      if (!confirmed) return;
+
+      button.disabled = true;
+      setStatus(t("deletingHistory"));
+      invokeTool("assistant.delete_conversation", { conversation_id: conversationId })
+        .then(function (result) {
+          state.conversations = Array.isArray(result && result.conversations)
+            ? result.conversations
+            : (state.conversations || []).filter(function (item) { return item.id !== conversationId; });
+
+          if (activeConversationId === conversationId) {
+            activeConversationId = null;
+            activeDraft = null;
+            welcomeShown = false;
+            if (els.messages) els.messages.innerHTML = "";
+            renderWelcome();
+          }
+
+          renderHistory();
+          setStatus(t("historyDeleted"));
+        })
+        .catch(function (error) {
+          button.disabled = false;
+          setStatus(t("deleteHistoryFailed") + String(error && error.message ? error.message : error), true);
+        });
+    });
+  }
+
+  function requestDeleteConfirmation(title, trigger) {
+    if (!els.confirmDialog || !els.confirmMessage || !els.confirmDelete) {
+      return Promise.resolve(false);
+    }
+    if (confirmResolver) {
+      closeDeleteConfirmation(false);
+    }
+
+    confirmTrigger = trigger || null;
+    els.confirmMessage.textContent = t("deleteHistoryConfirm").replace(
+      "{title}",
+      title || t("newConversationTitle")
+    );
+    els.confirmDialog.hidden = false;
+    els.confirmDelete.focus();
+
+    return new Promise(function (resolve) {
+      confirmResolver = resolve;
+    });
+  }
+
+  function closeDeleteConfirmation(confirmed) {
+    if (!confirmResolver) return;
+    var resolve = confirmResolver;
+    var trigger = confirmTrigger;
+    confirmResolver = null;
+    confirmTrigger = null;
+    if (els.confirmDialog) els.confirmDialog.hidden = true;
+    resolve(Boolean(confirmed));
+    if (trigger && trigger.isConnected) {
+      trigger.focus();
+    }
+  }
+
+  function bindConfirmationEvents() {
+    if (els.confirmCancel) {
+      els.confirmCancel.addEventListener("click", function () {
+        closeDeleteConfirmation(false);
+      });
+    }
+    if (els.confirmDelete) {
+      els.confirmDelete.addEventListener("click", function () {
+        closeDeleteConfirmation(true);
+      });
+    }
+    if (els.confirmDialog) {
+      els.confirmDialog.addEventListener("click", function (event) {
+        if (event.target === els.confirmDialog) {
+          closeDeleteConfirmation(false);
+        }
+      });
+    }
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && confirmResolver) {
+        event.preventDefault();
+        closeDeleteConfirmation(false);
+      }
+    });
   }
 
   function loadConversation(conversationId) {
@@ -480,6 +616,7 @@
   }
 
   bindEvents();
+  bindConfirmationEvents();
   setStatus(t("loading"));
 
   // Host init carries the per-document bridge token. Do not invoke before it arrives.

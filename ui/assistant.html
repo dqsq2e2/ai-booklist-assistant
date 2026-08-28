@@ -211,6 +211,69 @@
     }
     .card h2 { margin: 0 0 4px; font-size: 14px; letter-spacing: 0; }
     .card p { margin: 0; color: var(--muted); font-size: 12px; }
+    .history-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 34px;
+      gap: 10px;
+      align-items: center;
+    }
+    .history-open {
+      min-width: 0;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+    .history-open h2,
+    .history-open p {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .delete-history {
+      width: 34px;
+      height: 34px;
+      min-height: 34px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      background: transparent;
+      color: var(--danger);
+    }
+    .delete-history:hover:not(:disabled) {
+      border-color: color-mix(in srgb, var(--danger) 50%, var(--line));
+      background: color-mix(in srgb, var(--danger) 8%, transparent);
+    }
+    .trash-icon {
+      position: relative;
+      width: 12px;
+      height: 13px;
+      border: 2px solid currentColor;
+      border-top: 0;
+      border-radius: 0 0 2px 2px;
+    }
+    .trash-icon::before {
+      content: "";
+      position: absolute;
+      left: -3px;
+      top: -4px;
+      width: 14px;
+      border-top: 2px solid currentColor;
+    }
+    .trash-icon::after {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: -7px;
+      width: 4px;
+      height: 3px;
+      border: 2px solid currentColor;
+      border-bottom: 0;
+      border-radius: 2px 2px 0 0;
+    }
     .book { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
     .book strong { display: block; font-size: 13px; }
     .book span { display: block; color: var(--muted); font-size: 12px; }
@@ -227,6 +290,45 @@
     }
     .error { color: var(--danger); }
     .empty { color: var(--muted); text-align: center; padding: 36px 16px; }
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, .42);
+    }
+    .confirm-overlay[hidden] { display: none; }
+    .confirm-panel {
+      width: min(100%, 360px);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 18px 48px rgba(15, 23, 42, .22);
+      padding: 16px;
+    }
+    .confirm-panel h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+    .confirm-panel p {
+      margin: 8px 0 16px;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+    .confirm-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    button.danger {
+      border-color: var(--danger);
+      background: var(--danger);
+      color: #fff;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -263,6 +365,17 @@
       <textarea id="prompt" placeholder="例如：帮我从馆藏里建一个 6 本的推理入门书单"></textarea>
       <button class="primary" id="sendBtn" type="submit">发送</button>
     </form>
+  </div>
+
+  <div class="confirm-overlay" id="confirmDialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage" hidden>
+    <div class="confirm-panel">
+      <h2 id="confirmTitle">删除对话</h2>
+      <p id="confirmMessage"></p>
+      <div class="confirm-actions">
+        <button class="ghost" id="confirmCancel" type="button">取消</button>
+        <button class="danger" id="confirmDelete" type="button">删除</button>
+      </div>
+    </div>
   </div>
 
   <script src="./assistant.js"></script>

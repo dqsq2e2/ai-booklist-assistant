@@ -41,6 +41,8 @@ async function invokeTool(params) {
       return chat({ ...input, _context: params?._context });
     case "assistant.load_conversation":
       return loadConversationById({ ...input, _context: params?._context });
+    case "assistant.delete_conversation":
+      return deleteConversationById({ ...input, _context: params?._context });
     case "books.recommend":
       return recommendBooks({ ...input, _context: params?._context });
     case "booklist.create":
@@ -815,6 +817,31 @@ async function loadConversationById(params) {
   };
 }
 
+async function deleteConversationById(params) {
+  const conversationId = firstText(params?.conversation_id, params?.id, "");
+  if (!conversationId) {
+    throw new Error("assistant.delete_conversation requires conversation_id");
+  }
+
+  const index = await loadConversationIndex(params);
+  const current = index.items || [];
+  const conversations = current.filter((item) => item.id !== conversationId);
+  const [cacheResult] = await Promise.all([
+    cacheDelete(userCacheKey(params, `conversation:${conversationId}`)),
+    cacheSet(userCacheKey(params, "conversation-index"), {
+      items: conversations,
+      updated_at: nowIso(),
+    }),
+  ]);
+
+  return {
+    ok: true,
+    conversation_id: conversationId,
+    deleted: cacheResult?.deleted === true || conversations.length !== current.length,
+    conversations,
+  };
+}
+
 async function saveConversation(params, conversation) {
   await cacheSet(userCacheKey(params, `conversation:${conversation.id}`), conversation);
   const index = await loadConversationIndex(params);
@@ -860,6 +887,10 @@ async function cacheGet(key, fallback) {
 
 async function cacheSet(key, value) {
   return await hostInvoke("cache.set", { key, value });
+}
+
+async function cacheDelete(key) {
+  return await hostInvoke("cache.delete", { key });
 }
 
 async function hostInvoke(method, params) {

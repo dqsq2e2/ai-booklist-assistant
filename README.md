@@ -9,7 +9,7 @@ Ting Reader JavaScript 插件，用于在客户端插件面板里和书库对话
 ## 能力
 
 - `ui_extension`: 应用侧边栏页面、现有右下角快捷入口和插件偏好表单。
-- `tool_provider`: `assistant.chat`、`assistant.load_conversation`、`books.recommend`、`booklist.create`、`booklist.add_book`、`booklist.list`、`booklist.export`。
+- `tool_provider`: `assistant.chat`、`assistant.load_conversation`、`assistant.delete_conversation`、`books.recommend`、`booklist.create`、`booklist.add_book`、`booklist.list`、`booklist.export`。
 - `http_route`: `POST /api/v1/plugin-routes/assistant/chat`，走登录态保护。
 - `HostGateway`: 通过 `books.*`、`playlists.*`、`cache.*` 等受控宿主能力读取授权资源、保存对话并创建 Ting Reader 播放列表。
 
@@ -39,7 +39,7 @@ Ting Reader JavaScript 插件，用于在客户端插件面板里和书库对话
 - `conversation:<id>`: 某个对话的消息。
 - `settings`: 当前用户在插件设置入口里保存的偏好。
 
-如果卸载插件源码不会自动清理这些缓存文件；需要清理时可删除 `data/plugin-cache` 下对应哈希目录，或后续补一个专用清理工具能力。
+历史列表中的删除按钮会同时移除对话索引和对应的 `conversation:<id>` 缓存。Ting Reader 主动卸载插件时会删除该版本的插件缓存；覆盖安装同版本会保留缓存，升级到新版本时会把旧版本缓存迁移到新版本。
 
 ## 自动打包
 

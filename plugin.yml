@@ -1,6 +1,6 @@
 id: ai-booklist-assistant
 name: AI Booklist Assistant
-version: 1.0.8
+version: 1.0.9
 min_core_version: 1.4.9
 min_flutter_version: 1.1.1
 author: Ting Reader Team
@@ -52,6 +52,8 @@ capabilities:
     description: Chat with the assistant and optionally generate a booklist draft.
   - name: assistant.load_conversation
     description: Load a saved assistant conversation by id.
+  - name: assistant.delete_conversation
+    description: Permanently delete a saved assistant conversation by id.
   - name: books.recommend
     description: Recommend accessible books from the current user's library.
   - name: booklist.create
