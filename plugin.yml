@@ -1,12 +1,13 @@
 id: ai-booklist-assistant
 name: AI Booklist Assistant
-version: 1.0.9
-min_core_version: 1.4.9
+version: 2.0.1
+min_core_version: 2.0.0
 min_flutter_version: 1.1.1
 author: Ting Reader Team
 description:
   zh: 在插件面板中对话、整理馆藏、生成和保存个人书单的 AI 助手。
-  en: AI assistant for chatting with the library, creating personal booklists, and saving recommendations.
+  en: AI assistant for chatting with the library, creating personal booklists, and
+    saving recommendations.
 runtime: javascript
 license: MIT
 repo: dqsq2e2/ai-booklist-assistant
@@ -14,7 +15,6 @@ entry_point: plugin.js
 capabilities:
 - id: assistant.panel
   kind: ui_extension
-  invoke: openAssistant
   slots:
   - app.sidebar_page
   - global.floating_action
@@ -37,33 +37,86 @@ capabilities:
   - reader
 - id: assistant.chat_route
   kind: http_route
-  invoke: handleChatRoute
   route:
     method: POST
     path: /assistant/chat
     auth: user
 - id: assistant.tools
   kind: tool_provider
-  invoke: invokeTool
   tools:
   - name: assistant.state
-    description: Load assistant conversations, booklists, and recent library context.
+    description:
+      en: Load assistant conversations, booklists, and recent library context.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: false
   - name: assistant.chat
-    description: Chat with the assistant and optionally generate a booklist draft.
+    description:
+      en: Chat with the assistant and optionally generate a booklist draft.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: true
   - name: assistant.load_conversation
-    description: Load a saved assistant conversation by id.
+    description:
+      en: Load a saved assistant conversation by id.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: false
   - name: assistant.delete_conversation
-    description: Permanently delete a saved assistant conversation by id.
+    description:
+      en: Permanently delete a saved assistant conversation by id.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: true
   - name: books.recommend
-    description: Recommend accessible books from the current user's library.
+    description:
+      en: Recommend accessible books from the current user's library.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: true
   - name: booklist.create
-    description: Create or update a saved personal booklist.
+    description:
+      en: Create or update a saved personal booklist.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: true
   - name: booklist.add_book
-    description: Add a book to an existing or default booklist.
+    description:
+      en: Add a book to an existing or default booklist.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: true
   - name: booklist.list
-    description: List saved personal booklists.
+    description:
+      en: List saved personal booklists.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: false
   - name: booklist.export
-    description: Export saved booklists as Markdown or JSON.
+    description:
+      en: Export saved booklists as Markdown or JSON.
+    input_schema:
+      type: object
+    output_schema:
+      type: object
+    side_effects: false
+  invoke: invokeTool
 config_schema:
   type: object
   properties:
@@ -141,4 +194,4 @@ permissions:
 - type: user_settings_read
 - type: user_settings_write
 - type: network_access
-  value: "*"
+  domain: '*'

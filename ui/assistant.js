@@ -222,7 +222,7 @@
     }
     return bridgeRequest("capability.invoke", {
       capabilityId: "assistant.tools",
-      params: { name: name, input: payload }
+      params: { tool_name: name, params: payload }
     });
   }
 

@@ -1,4 +1,5 @@
 "use strict";
+import { success } from "./sdk.mjs";
 
 const DEFAULT_SYSTEM_PROMPT = [
   "你是 Ting Reader 的个人书单助手。",
@@ -31,8 +32,8 @@ async function openAssistant(params) {
 }
 
 async function invokeTool(params) {
-  const name = params?.name || params?.tool || params?.tool_name || "assistant.state";
-  const input = params?.input || params?.params || {};
+  const name = params?.tool_name;
+  const input = params?.params || {};
 
   switch (name) {
     case "assistant.state":
@@ -1218,3 +1219,15 @@ function integerValue(value, fallback, min, max) {
 function nowIso() {
   return new Date().toISOString();
 }
+
+// Fixed 2.0 capability entry points.
+export async function open(params) {
+  return success(await openAssistant(params));
+}
+export async function handle(request) {
+  return success(await handleChatRoute(request));
+}
+export async function invokeToolSdk(params) {
+  return success(await invokeTool(params));
+}
+export { invokeToolSdk as invokeTool };

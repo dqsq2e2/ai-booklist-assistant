@@ -1,94 +1,120 @@
-name: Package Plugin
+name: Release Plugin
 
 on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
-  pull_request:
+    paths:
+      - "plugin.yml"
+      - "plugin.js"
+      - "sdk.mjs"
+      - "ui/**"
+      - "tests/**"
+      - "README.md"
+      - ".github/workflows/package.yml"
+      - ".github/trpack/**"
   workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  package:
+  check-version:
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.check_tag.outputs.exists == 'false' }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Download trpack
-        run: |
-          curl -L -o trpack https://www.tingreader.cn/trpack/trpack-1.0.2-linux-amd64
-          chmod +x trpack
-          ./trpack --help
-
-      - name: Read plugin metadata
-        id: meta
+      - name: Get Version
+        id: version
         shell: bash
         run: |
-          VERSION="$(python3 - <<'PY'
+          VERSION=$(python - <<'PY'
+          import re
           from pathlib import Path
-          for line in Path("plugin.yml").read_text(encoding="utf-8").splitlines():
-              if line.startswith("version:"):
-                  print(line.split(":", 1)[1].strip().strip("\"'"))
-                  break
+
+          text = Path("plugin.yml").read_text(encoding="utf-8")
+          match = re.search(r"^version:\s*([^\s#]+)", text, re.M)
+          if not match:
+              raise SystemExit("plugin.yml version not found")
+          version = match.group(1).strip("\"'")
+          if Path("Cargo.toml").exists():
+              import tomllib
+              package_version = tomllib.loads(Path("Cargo.toml").read_text())["package"]["version"]
+              if package_version != version:
+                  raise SystemExit("Cargo.toml and plugin.yml versions differ")
+          print(version)
           PY
-          )"
-          PLUGIN_ID="$(python3 - <<'PY'
-          from pathlib import Path
-          for line in Path("plugin.yml").read_text(encoding="utf-8").splitlines():
-              if line.startswith("id:"):
-                  print(line.split(":", 1)[1].strip().strip("\"'"))
-                  break
-          PY
-          )"
-          if [ -z "$VERSION" ] || [ -z "$PLUGIN_ID" ]; then
-            echo "Failed to read plugin id/version from plugin.yml" >&2
+          )
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check Tag
+        id: check_tag
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-release:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Check JavaScript modules
+        run: |
+          node --check plugin.js
+          node --check sdk.mjs
+          if [[ -d ui ]]; then
+            find ui -name '*.js' -exec node --check {} \;
+          fi
+
+      - name: Package .tr
+        shell: bash
+        env:
+          TRPACK_SIGNING_KEY: ${{ secrets.TRPACK_PRIVATE_KEY_JSON }}
+        run: |
+          TRPACK=".github/trpack/linux-x86_64/trpack"
+          chmod +x "$TRPACK"
+          [[ "$("$TRPACK" --version)" == "trpack 2.0.1" ]]
+          mkdir -p dist
+          if [[ -z "${TRPACK_SIGNING_KEY:-}" ]]; then
+            echo "::error::TRPACK_SIGNING_KEY secret is required for official plugin builds"
             exit 1
           fi
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG_VERSION="${GITHUB_REF_NAME#v}"
-            if [ "$TAG_VERSION" != "$VERSION" ]; then
-              echo "Tag ${GITHUB_REF_NAME} does not match plugin.yml version ${VERSION}" >&2
-              exit 1
-            fi
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "plugin_id=$PLUGIN_ID" >> "$GITHUB_OUTPUT"
-          echo "package=$PLUGIN_ID-$VERSION.tr" >> "$GITHUB_OUTPUT"
+          KEY_FILE="$RUNNER_TEMP/trpack-signing-key.json"
+          trap 'rm -f "$KEY_FILE"' EXIT
+          umask 077
+          printf '%s' "$TRPACK_SIGNING_KEY" > "$KEY_FILE"
 
-      - name: Validate plugin
-        run: ./trpack validate .
+          OUT="dist/ai-booklist-assistant-${{ needs.check-version.outputs.version }}.tr"
+          "$TRPACK" validate .
+          "$TRPACK" build . --output "$OUT" --sign-key "$KEY_FILE"
+          "$TRPACK" verify "$OUT"
+          (cd dist && sha256sum "$(basename "$OUT")" > "$(basename "$OUT").sha256")
 
-      - name: Build package
-        env:
-          TRPACK_PRIVATE_KEY_JSON: ${{ secrets.TRPACK_PRIVATE_KEY_JSON }}
-        shell: bash
-        run: |
-          mkdir -p dist
-          if [ -n "${TRPACK_PRIVATE_KEY_JSON}" ]; then
-            printf "%s" "${TRPACK_PRIVATE_KEY_JSON}" > trpack-private-key.json
-            ./trpack build . --output "dist/${{ steps.meta.outputs.package }}" --sign-key trpack-private-key.json
-            rm -f trpack-private-key.json
-          else
-            ./trpack build . --output "dist/${{ steps.meta.outputs.package }}"
-          fi
-
-      - name: Verify package
-        run: ./trpack verify "dist/${{ steps.meta.outputs.package }}"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v3
         with:
-          name: ${{ steps.meta.outputs.package }}
-          path: dist/${{ steps.meta.outputs.package }}
-
-      - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/${{ steps.meta.outputs.package }}
+          tag_name: v${{ needs.check-version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            dist/*.tr
+            dist/*.tr.sha256
