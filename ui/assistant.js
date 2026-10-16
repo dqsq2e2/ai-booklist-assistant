@@ -266,7 +266,9 @@
       if (data.ok) {
         callbacks.resolve(data.result);
       } else {
-        callbacks.reject(new Error(data.error || t("callFailed")));
+        callbacks.reject((window.__TING_PLUGIN_BRIDGE__.createError
+        ? window.__TING_PLUGIN_BRIDGE__.createError(data.error, t("callFailed"))
+        : new Error(typeof data.error === "string" ? data.error : t("callFailed"))));
       }
     }
   });
@@ -293,7 +295,8 @@
     for (var i = 0; i < actions.length; i += 1) {
       var action = actions[i] || {};
       if (action.ok === false) {
-        lines.push("× " + (action.name || "action") + ": " + (action.error || t("actionFailed")));
+        lines.push("× " + (action.name || "action") + ": " +
+          (action.error && action.error.message || t("actionFailed")));
       } else {
         var title = "";
         if (action.booklist && action.booklist.name) title = action.booklist.name;

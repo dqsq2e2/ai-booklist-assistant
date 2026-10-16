@@ -1,5 +1,5 @@
 "use strict";
-import { success } from "./sdk.mjs";
+import { success, errorInfo } from "./sdk.mjs";
 
 const DEFAULT_SYSTEM_PROMPT = [
   "你是 Ting Reader 的个人书单助手。",
@@ -172,7 +172,7 @@ async function chat(params) {
     } catch (error) {
       Ting?.log?.warn?.(`AI assistant request failed: ${error}`);
       assistantResult = await ruleBasedAssistant(message, context);
-      assistantResult.model_error = String(error);
+      assistantResult.model_error = errorInfo(error);
     }
   } else {
     assistantResult = await ruleBasedAssistant(message, context);
@@ -210,7 +210,7 @@ async function chat(params) {
       executedActions.push({
         name: "booklist.create",
         ok: false,
-        error: String(error),
+        error: errorInfo(error),
         auto: true,
       });
     }
@@ -406,10 +406,11 @@ async function executeToolActions(actions, params, context) {
           booklist: added?.booklist || null,
         });
       } else {
-        results.push({ name: name || "unknown", ok: false, error: "unsupported tool" });
+        results.push({ name: name || "unknown", ok: false,
+          error: errorInfo("Unsupported tool", "unsupported_operation") });
       }
     } catch (error) {
-      results.push({ name: name || "unknown", ok: false, error: String(error) });
+      results.push({ name: name || "unknown", ok: false, error: errorInfo(error) });
     }
   }
   return results;
